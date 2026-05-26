@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B.L.U.E. — The Ripple</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a1628;
+            color: #e0f0ff;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #ripple-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        .content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            pointer-events: none;
+            padding: 2rem;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            letter-spacing: 0.3em;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(100, 180, 255, 0.5);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        .tagline {
+            font-size: 1rem;
+            color: #7ab8e0;
+            letter-spacing: 0.15em;
+            margin-bottom: 2.5rem;
+            opacity: 0.8;
+        }
+
+        /* ============================================================
+           SEARCH BAR
+           ============================================================
+           This is a placeholder search bar that uses DuckDuckGo.
+
+           TO REPLACE WITH B.L.U.E.'S OWN SEARCH:
+           1. Change the form's "action" URL below to your search endpoint
+           2. Change the input's "name" attribute to match your API
+           3. Remove or update the hidden input fields as needed
+
+           Example for a custom API:
+             <form action="https://api.blue.system/search" method="GET">
+               <input type="text" name="query" placeholder="Search...">
+               <input type="hidden" name="category" value="education">
+             </form>
+        ============================================================ */
+
+        .search-container {
+            pointer-events: auto;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .search-form {
+            display: flex;
+            align-items: center;
+            border: 1px solid #4a9fd4;
+            background: rgba(10, 22, 40, 0.85);
+            transition: all 0.3s ease;
+        }
+
+        .search-form:focus-within {
+            box-shadow: 0 0 25px rgba(74, 159, 212, 0.3);
+            border-color: #6ab8e8;
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e0f0ff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.95rem;
+            padding: 0.9rem 1.2rem;
+            letter-spacing: 0.05em;
+        }
+
+        .search-input::placeholder {
+            color: #4a7a9a;
+        }
+
+        .search-btn {
+            background: transparent;
+            border: none;
+            border-left: 1px solid #2a4a6a;
+            color: #4a9fd4;
+            padding: 0.9rem 1.2rem;
+            cursor: pointer;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #4a9fd4;
+            color: #0a1628;
+        }
+
+        /* ============================================================
+           FILTER TAGS (Optional — for future use)
+           ============================================================
+           These tags could filter search results by category.
+           Currently hidden. Uncomment to show.
+        ============================================================ */
+
+        .filter-tags {
+            display: none; /* Set to "flex" to show */
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            pointer-events: auto;
+            padding: 0.3rem 0.8rem;
+            border: 1px solid #2a4a6a;
+            color: #5a8aaa;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(10, 22, 40, 0.6);
+        }
+
+        .filter-tag:hover,
+        .filter-tag.active {
+            border-color: #4a9fd4;
+            color: #4a9fd4;
+        }
+
+        .hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: #3a6a8a;
+            z-index: 10;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @media (max-width: 600px) {
+            .logo { font-size: 2rem; }
+            .tagline { font-size: 0.85rem; }
+            .search-input { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="ripple-canvas"></canvas>
+
+    <div class="content">
+        <div class="logo">B.L.U.E.</div>
+        <div class="tagline">BROAD LEARNING UNIVERSAL EDUCATION</div>
+
+        <!-- ============================================================
+             SEARCH COMPONENT
+
+             CURRENT: Uses DuckDuckGo as a placeholder search engine.
+             DuckDuckGo is privacy-focused and allows site-specific
+             searches via the "sites" parameter.
+
+             TODO FOR B.L.U.E. TEAM:
+             1. Replace "action" with your own search API endpoint
+             2. Replace "name" attributes to match your API spec
+             3. Add authentication headers if needed
+             4. Consider adding autocomplete/suggestions
+        ============================================================ -->
+        <div class="search-container">
+            <form 
+                class="search-form" 
+                action="https://duckduckgo.com/" 
+                method="GET"
+                target="_blank"
+            >
+                <!-- Main search input — this is what the user types -->
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    name="q" 
+                    placeholder="Search for anything..."
+                    autocomplete="off"
+                    autofocus
+                >
+
+                <!-- DuckDuckGo-specific: restricts results to educational sites -->
+                <!-- Remove this when switching to B.L.U.E.'s own search -->
+                <input type="hidden" name="sites" value="wikipedia.org,khanacademy.org,arxiv.org">
+
+                <!-- Search button -->
+                <button type="submit" class="search-btn">SEARCH</button>
+            </form>
+
+            <!-- Optional filter tags — hidden by default -->
+            <!-- Uncomment and customize when B.L.U.E. has categories -->
+            <!--
+            <div class="filter-tags">
+                <span class="filter-tag active">All</span>
+                <span class="filter-tag">Math</span>
+                <span class="filter-tag">Science</span>
+                <span class="filter-tag">Programming</span>
+                <span class="filter-tag">History</span>
+            </div>
+            -->
+        </div>
+    </div>
+
+    <div class="hint">move your cursor to disturb the water</div>
+
+    <script>
+        const canvas = document.getElementById('ripple-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let cols, rows;
+        const charSize = 14;
+        let grid = [];
+        let ripples = [];
+
+        // ASCII characters from dense to sparse
+        const chars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' ', ' '];
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            cols = Math.ceil(width / charSize);
+            rows = Math.ceil(height / charSize);
+            initGrid();
+        }
+
+        function initGrid() {
+            grid = [];
+            for (let y = 0; y < rows; y++) {
+                grid[y] = [];
+                for (let x = 0; x < cols; x++) {
+                    grid[y][x] = 0;
+                }
+            }
+        }
+
+        class Ripple {
+            constructor(x, y, power = 1) {
+                this.x = x;
+                this.y = y;
+                this.radius = 0;
+                this.maxRadius = Math.max(width, height) * 0.8;
+                this.speed = 2 + Math.random();
+                this.power = power;
+                this.alive = true;
+                this.width = 3 + Math.random() * 4;
+            }
+
+            update() {
+                this.radius += this.speed;
+                if (this.radius > this.maxRadius) {
+                    this.alive = false;
+                }
+            }
+
+            getIntensity(px, py) {
+                const dx = px - this.x;
+                const dy = py - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const diff = Math.abs(dist - this.radius);
+
+                if (diff < this.width) {
+                    const fade = 1 - (this.radius / this.maxRadius);
+                    const ringFade = 1 - (diff / this.width);
+                    return this.power * fade * ringFade * ringFade;
+                }
+                return 0;
+            }
+        }
+
+        function addRipple(x, y, power = 1) {
+            ripples.push(new Ripple(x, y, power));
+            if (ripples.length > 30) {
+                ripples.shift();
+            }
+        }
+
+        let autoRippleTimer = 0;
+
+        function update() {
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    grid[y][x] = 0;
+                }
+            }
+
+            autoRippleTimer++;
+            if (autoRippleTimer > 120) {
+                addRipple(width / 2, height / 2, 0.6);
+                autoRippleTimer = 0;
+            }
+
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const r = ripples[i];
+                r.update();
+
+                if (!r.alive) {
+                    ripples.splice(i, 1);
+                    continue;
+                }
+
+                const startY = Math.max(0, Math.floor((r.y - r.radius - r.width) / charSize));
+                const endY = Math.min(rows, Math.ceil((r.y + r.radius + r.width) / charSize));
+                const startX = Math.max(0, Math.floor((r.x - r.radius - r.width) / charSize));
+                const endX = Math.min(cols, Math.ceil((r.x + r.radius + r.width) / charSize));
+
+                for (let gy = startY; gy < endY; gy++) {
+                    for (let gx = startX; gx < endX; gx++) {
+                        const px = gx * charSize + charSize / 2;
+                        const py = gy * charSize + charSize / 2;
+                        const intensity = r.getIntensity(px, py);
+                        if (intensity > 0) {
+                            grid[gy][gx] = Math.min(1, grid[gy][gx] + intensity);
+                        }
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0a1628';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.font = `${charSize - 2}px 'Courier New', monospace`;
+            ctx.textBaseline = 'top';
+
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const intensity = grid[y][x];
+                    if (intensity > 0.02) {
+                        const charIndex = Math.min(chars.length - 1, Math.floor(intensity * chars.length));
+                        const char = chars[charIndex];
+
+                        const r = Math.floor(74 + intensity * 50);
+                        const g = Math.floor(159 + intensity * 60);
+                        const b = Math.floor(212 + intensity * 43);
+                        const alpha = Math.min(1, intensity * 1.5);
+
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                        ctx.fillText(char, x * charSize, y * charSize);
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            update();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        canvas.addEventListener('mousemove', (e) => {
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            const speed = Math.sqrt(dx * dx + dy * dy);
+
+            if (speed > 15) {
+                addRipple(e.clientX, e.clientY, Math.min(1, speed / 50));
+            }
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            addRipple(e.clientX, e.clientY, 1.2);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            addRipple(touch.clientX, touch.clientY, 0.8);
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            addRipple(touch.clientX, touch.clientY, 1.0);
+        });
+
+        window.addEventListener('resize', resize);
+
+        resize();
+        addRipple(width / 2, height / 2, 1.0);
+        animate();
+    </script>
+</body>
+</html>
